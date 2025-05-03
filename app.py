@@ -6,10 +6,10 @@ from datetime import datetime
 # 🔗 Connect to MySQL
 def connect_db():
       return mysql.connector.connect(
-        host=st.secrets["mysql"]["localhost"],
-        user=st.secrets["mysql"]["root"],
-        password=st.secrets["mysql"]["Guruprasad@123"],
-        database=st.secrets["mysql"]["soilrecommendation"]
+        host=st.secrets["mysql"]["host"],
+        user=st.secrets["mysql"]["user"],
+        password=st.secrets["mysql"]["password"],
+        database=st.secrets["mysql"]["database"]
     )
 
 # 🔐 Password hashing
