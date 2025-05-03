@@ -5,11 +5,11 @@ from datetime import datetime
 
 # 🔗 Connect to MySQL
 def connect_db():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="Guruprasad@123",
-        database="SoilRecommendation"
+      return mysql.connector.connect(
+        host=st.secrets["mysql"]["localhost"],
+        user=st.secrets["mysql"]["root"],
+        password=st.secrets["mysql"]["Guruprasad@123"],
+        database=st.secrets["mysql"]["soilrecommendation"]
     )
 
 # 🔐 Password hashing
