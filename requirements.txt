@@ -1,3 +1,4 @@
 streamlit==1.45.0
 mysql-connector-python==9.3.0
+toml
 
