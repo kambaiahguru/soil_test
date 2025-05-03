@@ -1,6 +1,7 @@
 import streamlit as st
 import mysql.connector
 import hashlib
+import toml
 from datetime import datetime
 
 # 🔗 Connect to MySQL
