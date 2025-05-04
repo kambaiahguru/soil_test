@@ -2,31 +2,35 @@ import sqlite3
 
 def setup_db():
     """Initialize database with all required tables and sample data"""
+    conn = None
     try:
         conn = sqlite3.connect('soil_recommendation.db')
         cursor = conn.cursor()
 
-        # Create tables with error handling
-        tables = [
-            """CREATE TABLE IF NOT EXISTS users (
+        # Create tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL
-            )""",
-            """CREATE TABLE IF NOT EXISTS soiltypes (
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS soiltypes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 soil_name TEXT UNIQUE NOT NULL
-            )""",
-            """CREATE TABLE IF NOT EXISTS crops (
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS crops (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 crop_name TEXT NOT NULL,
                 soil_id INTEGER NOT NULL,
                 FOREIGN KEY (soil_id) REFERENCES soiltypes(id)
-            )"""
-        ]
-
-        for table in tables:
-            cursor.execute(table)
+            )
+        ''')
 
         # Insert soil types if empty
         cursor.execute("SELECT COUNT(*) FROM soiltypes")
