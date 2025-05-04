@@ -1,56 +1,69 @@
 import sqlite3
 
 def setup_db():
-    """Sets up the SQLite database with all required tables and initial data."""
-    conn = sqlite3.connect('soil_recommendation.db')
-    cursor = conn.cursor()
+    """Initialize database with all required tables and sample data"""
+    try:
+        conn = sqlite3.connect('soil_recommendation.db')
+        cursor = conn.cursor()
 
-    # Create tables
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
-    )
-    ''')
+        # Create tables with error handling
+        tables = {
+            'users': """
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL
+                )""",
+            'soiltypes': """
+                CREATE TABLE IF NOT EXISTS soiltypes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    soil_name TEXT UNIQUE NOT NULL
+                )""",
+            'crops': """
+                CREATE TABLE IF NOT EXISTS crops (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    crop_name TEXT NOT NULL,
+                    soil_id INTEGER NOT NULL,
+                    FOREIGN KEY (soil_id) REFERENCES soiltypes(id)
+                )"""
+        }
 
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS soiltypes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        soil_name TEXT UNIQUE NOT NULL
-    )
-    ''')
+        for table, schema in tables.items():
+            cursor.execute(schema)
 
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS crops (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        crop_name TEXT NOT NULL,
-        soil_id INTEGER,
-        FOREIGN KEY (soil_id) REFERENCES soiltypes(id)
-    )
-    ''')
+        # Insert soil types if empty
+        cursor.execute("SELECT COUNT(*) FROM soiltypes")
+        if cursor.fetchone()[0] == 0:
+            soils = [
+                ('Black Soil',), ('Laterite Soil',), ('Red Soil',),
+                ('Alluvial Soil',), ('Clay Soil',), ('Sandy Soil',), 
+                ('Loamy Soil',)
+            ]
+            cursor.executemany("INSERT INTO soiltypes (soil_name) VALUES (?)", soils)
 
-    # Insert initial data
-    cursor.execute("SELECT COUNT(*) FROM soiltypes")
-    if cursor.fetchone()[0] == 0:
-        soils = [
-            ("Black Soil",), ("Laterite Soil",), ("Red Soil",),
-            ("Alluvial Soil",), ("Clay Soil",), ("Sandy Soil",), ("Loamy Soil",)
-        ]
-        cursor.executemany("INSERT INTO soiltypes (soil_name) VALUES (?)", soils)
+        # Insert crops if empty
+        cursor.execute("SELECT COUNT(*) FROM crops")
+        if cursor.fetchone()[0] == 0:
+            crops = [
+                ('Rice', 1), ('Cotton', 1), ('Sugarcane', 1),
+                ('Tea', 2), ('Coffee', 2), ('Rubber', 2),
+                ('Groundnut', 3), ('Millets', 3), ('Tobacco', 3),
+                ('Wheat', 4), ('Rice', 4), ('Sugarcane', 4),
+                ('Paddy', 5), ('Jute', 5), ('Wheat', 5),
+                ('Coconut', 6), ('Groundnut', 6), ('Maize', 6),
+                ('Wheat', 7), ('Cotton', 7), ('Vegetables', 7)
+            ]
+            cursor.executemany("INSERT INTO crops (crop_name, soil_id) VALUES (?, ?)", crops)
 
-    cursor.execute("SELECT COUNT(*) FROM crops")
-    if cursor.fetchone()[0] == 0:
-        crops = [
-            ("Rice", 1), ("Cotton", 1), ("Sugarcane", 1),  # Black Soil
-            ("Tea", 2), ("Coffee", 2), ("Rubber", 2),      # Laterite Soil
-            ("Groundnut", 3), ("Millets", 3), ("Tobacco", 3),  # Red Soil
-            ("Wheat", 4), ("Rice", 4), ("Sugarcane", 4),    # Alluvial Soil
-            ("Paddy", 5), ("Jute", 5), ("Wheat", 5),        # Clay Soil
-            ("Coconut", 6), ("Groundnut", 6), ("Maize", 6),  # Sandy Soil
-            ("Wheat", 7), ("Cotton", 7), ("Vegetables", 7)   # Loamy Soil
-        ]
-        cursor.executemany("INSERT INTO crops (crop_name, soil_id) VALUES (?, ?)", crops)
+        conn.commit()
+        print("Database setup completed successfully")
+        
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        raise
+    finally:
+        if conn:
+            conn.close()
 
-    conn.commit()
-    conn.close()
+if __name__ == "__main__":
+    setup_db()
