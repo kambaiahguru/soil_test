@@ -257,6 +257,9 @@ if 'username' not in st.session_state:
 if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 
+# Initialize the translation dictionary
+T = translations["en"]  # Default language is English.  You could use a session state here
+
 menu = st.sidebar.selectbox(T["language"], [T["login"], T["register"]])
 
 if menu == T["register"]:
