@@ -1,30 +1,24 @@
 import streamlit as st
-import mysql.connector
+import sqlite3
 import hashlib
-import toml
 from datetime import datetime
 
-# 🔗 Connect to MySQL
+# 🔗 Connect to SQLite
 def connect_db():
-      return mysql.connector.connect(
-        host=st.secrets["mysql"]["host"],
-        user=st.secrets["mysql"]["user"],
-        password=st.secrets["mysql"]["password"],
-        database=st.secrets["mysql"]["database"]
-    )
+    return sqlite3.connect('soil_recommendation.db')
 
-# 🔐 Password hashing
+# 🔐 Password hashing (no change needed)
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 # 🔍 Verify login
 def verify_user(username, password):
     db = connect_db()
-    cursor = db.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
     db.close()
-    if user and user["password"] == hash_password(password):
+    if user and user[2] == hash_password(password):  # Assuming password is the 3rd column (index 2)
         return True
     return False
 
@@ -33,11 +27,11 @@ def register_user(username, password):
     db = connect_db()
     cursor = db.cursor()
     try:
-        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)",
+        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)",
                        (username, hash_password(password)))
         db.commit()
         return True
-    except:
+    except sqlite3.IntegrityError:
         return False
     finally:
         db.close()
@@ -45,21 +39,21 @@ def register_user(username, password):
 # 📥 Soil & Crop info
 def get_soil_types():
     db = connect_db()
-    cursor = db.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM soiltypes")
-    result = cursor.fetchall()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, soil_name FROM soiltypes")
+    result = [{"id": row[0], "soil_name": row[1]} for row in cursor.fetchall()]
     db.close()
     return result
 
 def get_crops_by_soil(soil_id):
     db = connect_db()
-    cursor = db.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM crops WHERE soil_id = %s", (soil_id,))
-    result = cursor.fetchall()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, crop_name FROM crops WHERE soil_id = ?", (soil_id,))
+    result = [{"id": row[0], "crop_name": row[1]} for row in cursor.fetchall()]
     db.close()
     return result
 
-# 🎯 Standard nutrients
+# 🎯 Standard nutrients (no change needed)
 standard_nutrients = {
     1: {"nitrogen": 50, "phosphorus": 30, "potassium": 40},
     2: {"nitrogen": 45, "phosphorus": 25, "potassium": 35},
@@ -70,7 +64,7 @@ standard_nutrients = {
     7: {"nitrogen": 85, "phosphorus": 70, "potassium": 80},
 }
 
-# ⚙️ Analyze soil
+# ⚙️ Analyze soil (no change needed)
 def analyze_soil(crop_id, n, p, k, T):
     std = standard_nutrients.get(crop_id)
     if not std:
@@ -84,7 +78,7 @@ def analyze_soil(crop_id, n, p, k, T):
         else f"{T['deficient_by']} {std['potassium'] - k}" if k < std["potassium"] else T["balanced" ]
     }
 
-# 💊 Recommend fertilizers
+# 💊 Recommend fertilizers (no change needed)
 def recommend_fertilizer(crop_id, n, p, k, T):
     std = standard_nutrients.get(crop_id)
     if not std:
@@ -126,7 +120,7 @@ def recommend_fertilizer(crop_id, n, p, k, T):
 
     return inorganic, organic
 
-# 📝 Save result
+# 📝 Save result (no change needed)
 def save_to_file(analysis, inorganic, organic, T):
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d")
@@ -142,7 +136,7 @@ def save_to_file(analysis, inorganic, organic, T):
     result += f"\n{T['organic_fertilizers']}:\n" + "\n".join(organic) + "\n"
     return result
 
-# 🌐 Multi-language labels
+# 🌐 Multi-language labels (no change needed)
 translations = {
     "en": {
         "title": "🌱 Smart Soil & Fertilizer Recommendation System",
