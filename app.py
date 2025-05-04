@@ -11,6 +11,13 @@ from datetime import datetime
 def connect_db():
     return sqlite3.connect('soil_recommendation.db')
 
+# Check if the database file exists, and if not, run the setup
+if not os.path.exists('soil_recommendation.db'):
+    setup_db()
+    st.info("Database created and initial data loaded.")
+else:
+    st.info("Database file already exists.")
+
 # 🔐 Password hashing (no change needed)
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -19,10 +26,11 @@ def hash_password(password):
 def verify_user(username, password):
     db = connect_db()
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+    cursor.execute("SELECT id, username, password FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
     db.close()
-    if user and user[2] == hash_password(password):  # Assuming password is the 3rd column (index 2)
+    if user and user[2] == hash_password(password):  # Password is the 3rd column (index 2)
+        st.session_state.user_id = user[0] # Store user ID if needed later
         return True
     return False
 
@@ -36,6 +44,7 @@ def register_user(username, password):
         db.commit()
         return True
     except sqlite3.IntegrityError:
+        st.error(T["username_exists"]) # Display error message
         return False
     finally:
         db.close()
@@ -223,7 +232,7 @@ translations = {
         "select_crop": "फसल चुनें",
         "nitrogen": "नाइट्रोजन (किग्रा/एकड़)",
         "phosphorus": "फॉस्फोरस (किग्रा/एकड़)",
-        "potassium": "पोटेशियम (किग्रा/एकड़)",
+        "potेशियम (किग्रा/एकड़)",
         "analyze": "विश्लेषण करें और सिफारिश करें",
         "nutrient_status": "पोषक तत्व स्थिति",
         "inorganic_fertilizers": "अकार्बनिक उर्वरक",
@@ -240,17 +249,13 @@ translations = {
     }
 }
 
-# 🌿 Streamlit UI
-lang = st.sidebar.selectbox("Language / ಭಾಷೆ / भाषा", ["en", "kn", "hi"])
-T = translations[lang]
-
-st.title(T["title"])
-
 # Session State
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'username' not in st.session_state:
     st.session_state.username = ""
+if 'user_id' not in st.session_state:
+    st.session_state.user_id = None
 
 menu = st.sidebar.selectbox(T["language"], [T["login"], T["register"]])
 
@@ -262,7 +267,7 @@ if menu == T["register"]:
         if register_user(uname, pword):
             st.sidebar.success(T["user_created"])
         else:
-            st.sidebar.error(T["username_exists"])
+            pass # Error message is already displayed in register_user
 
 elif menu == T["login"]:
     st.sidebar.subheader(T["login"])
@@ -273,6 +278,7 @@ elif menu == T["login"]:
             st.session_state.logged_in = True
             st.session_state.username = uname
             st.success(f"{T['welcome']} {uname}!")
+            st.rerun() # Force a rerun to display the main UI
         else:
             st.sidebar.error(T["invalid_credentials"])
 
