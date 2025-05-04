@@ -4,6 +4,56 @@ import hashlib
 import os
 from datetime import datetime
 from db_setup import setup_db
+# Add this at the top after imports
+def initialize_database():
+    if not os.path.exists('soil_recommendation.db'):
+        try:
+            setup_db()
+            st.sidebar.success("Database initialized successfully!")
+        except Exception as e:
+            st.error(f"Failed to initialize database: {str(e)}")
+            st.stop()
+
+# Replace your database check with:
+initialize_database()
+
+# Update your get_soil_types() function:
+def get_soil_types():
+    """Retrieve soil types with proper error handling"""
+    try:
+        conn = connect_db()
+        if conn is None:
+            st.error("Database connection failed")
+            return []
+        
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, soil_name FROM soiltypes ORDER BY soil_name")
+        soils = [{"id": row[0], "soil_name": row[1]} for row in cursor.fetchall()]
+        
+        if not soils:
+            st.warning("No soil types found in database")
+            
+        return soils
+        
+    except sqlite3.Error as e:
+        st.error(f"Database error: {str(e)}")
+        return []
+    finally:
+        if conn:
+            conn.close()
+
+# Update your main app logic:
+if st.session_state.logged_in:
+    try:
+        soils = get_soil_types()
+        if not soils:
+            st.error("Please initialize the database with soil types")
+            st.stop()  # Prevent further execution
+            
+        # Rest of your soil/crop selection logic...
+        
+    except Exception as e:
+        st.error(f"Application error: {str(e)}")
 
 # 🔗 Connect to SQLite
 def connect_db():
