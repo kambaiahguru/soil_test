@@ -2,7 +2,7 @@ import streamlit as st
 import sqlite3
 import hashlib
 from datetime import datetime
-from db_setup import initialize_database
+from db_setup import setup_db
 
 # Initialize session state
 def init_session_state():
