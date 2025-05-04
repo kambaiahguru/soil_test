@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 import sqlite3
 import hashlib
@@ -93,76 +92,89 @@ def get_crops_by_soil(soil_id):
         conn.close()
 
 # Analysis functions
-standard_nutrients = {
-    1: {"nitrogen": 50, "phosphorus": 30, "potassium": 40},
-    2: {"nitrogen": 45, "phosphorus": 25, "potassium": 35},
-    3: {"nitrogen": 60, "phosphorus": 40, "potassium": 50},
-    4: {"nitrogen": 80, "phosphorus": 60, "potassium": 70},
-    5: {"nitrogen": 70, "phosphorus": 55, "potassium": 65},
-    6: {"nitrogen": 90, "phosphorus": 75, "potassium": 85},
-    7: {"nitrogen": 85, "phosphorus": 70, "potassium": 80},
-}
+standard_nutrients_list = [  # Changed to a list
+    {"nitrogen": 50, "phosphorus": 30, "potassium": 40},  # Assuming Rice for Black Soil (index 0)
+    {"nitrogen": 45, "phosphorus": 25, "potassium": 35},  # Assuming Cotton for Black Soil (index 1)
+    {"nitrogen": 60, "phosphorus": 40, "potassium": 50},  # Assuming Sugarcane for Black Soil (index 2)
+    {"nitrogen": 45, "phosphorus": 25, "potassium": 35},  # Assuming Tea for Laterite Soil (index 0)
+    {"nitrogen": 50, "phosphorus": 30, "potassium": 40},  # Assuming Coffee for Laterite Soil (index 1)
+    {"nitrogen": 55, "phosphorus": 35, "potassium": 45},  # Assuming Rubber for Laterite Soil (index 2)
+    {"nitrogen": 60, "phosphorus": 40, "potassium": 50},  # Assuming Groundnut for Red Soil (index 0)
+    {"nitrogen": 50, "phosphorus": 30, "potassium": 40},  # Assuming Millets for Red Soil (index 1)
+    {"nitrogen": 70, "phosphorus": 50, "potassium": 60},  # Assuming Tobacco for Red Soil (index 2)
+    {"nitrogen": 80, "phosphorus": 60, "potassium": 70},  # Assuming Wheat for Alluvial Soil (index 0)
+    {"nitrogen": 75, "phosphorus": 55, "potassium": 65},  # Assuming Rice for Alluvial Soil (index 1)
+    {"nitrogen": 85, "phosphorus": 65, "potassium": 75},  # Assuming Sugarcane for Alluvial Soil (index 2)
+    {"nitrogen": 70, "phosphorus": 50, "potassium": 60},  # Assuming Paddy for Clay Soil (index 0)
+    {"nitrogen": 65, "phosphorus": 45, "potassium": 55},  # Assuming Jute for Clay Soil (index 1)
+    {"nitrogen": 80, "phosphorus": 60, "potassium": 70},  # Assuming Wheat for Clay Soil (index 2)
+    {"nitrogen": 90, "phosphorus": 70, "potassium": 80},  # Assuming Coconut for Sandy Soil (index 0)
+    {"nitrogen": 60, "phosphorus": 40, "potassium": 50},  # Assuming Groundnut for Sandy Soil (index 1)
+    {"nitrogen": 75, "phosphorus": 55, "potassium": 65},  # Assuming Maize for Sandy Soil (index 2)
+    {"nitrogen": 85, "phosphorus": 65, "potassium": 75},  # Assuming Wheat for Loamy Soil (index 0)
+    {"nitrogen": 70, "phosphorus": 50, "potassium": 60},  # Assuming Cotton for Loamy Soil (index 1)
+    {"nitrogen": 80, "phosphorus": 60, "potassium": 70},  # Assuming Vegetables for Loamy Soil (index 2)
+]
 
-def analyze_soil(crop_id, n, p, k):
-    std = standard_nutrients.get(crop_id)
-    if not std:
-        return None
-    return {
-        "Nitrogen": f"Excess by {n - std['nitrogen']:.2f}" if n > std["nitrogen"]
-        else f"Deficient by {std['nitrogen'] - n:.2f}" if n < std["nitrogen"] else "Balanced",
-        "Phosphorus": f"Excess by {p - std['phosphorus']:.2f}" if p > std["phosphorus"]
-        else f"Deficient by {std['phosphorus'] - p:.2f}" if p < std["phosphorus"] else "Balanced",
-        "Potassium": f"Excess by {k - std['potassium']:.2f}" if k > std["potassium"]
-        else f"Deficient by {std['potassium'] - k:.2f}" if k < std["potassium"] else "Balanced"
-    }
+def analyze_soil(crop_index, n, p, k):
+    if 0 <= crop_index < len(standard_nutrients_list):
+        std = standard_nutrients_list[crop_index]
+        return {
+            "Nitrogen": f"Excess by {n - std['nitrogen']:.2f}" if n > std["nitrogen"]
+            else f"Deficient by {std['nitrogen'] - n:.2f}" if n < std["nitrogen"] else "Balanced",
+            "Phosphorus": f"Excess by {p - std['phosphorus']:.2f}" if p > std["phosphorus"]
+            else f"Deficient by {std['phosphorus'] - p:.2f}" if p < std["phosphorus"] else "Balanced",
+            "Potassium": f"Excess by {k - std['potassium']:.2f}" if k > std["potassium"]
+            else f"Deficient by {std['potassium'] - k:.2f}" if k < std["potassium"] else "Balanced"
+        }
+    return None
 
-def recommend_fertilizer(crop_id, n, p, k):
-    std = standard_nutrients.get(crop_id)
-    if not std:
-        return [], []
+def recommend_fertilizer(crop_index, n, p, k):
+    if 0 <= crop_index < len(standard_nutrients_list):
+        std = standard_nutrients_list[crop_index]
+        deficiency = {
+            "nitrogen": max(0, std["nitrogen"] - n),
+            "phosphorus": max(0, std["phosphorus"] - p),
+            "potassium": max(0, std["potassium"] - k),
+        }
 
-    deficiency = {
-        "nitrogen": max(0, std["nitrogen"] - n),
-        "phosphorus": max(0, std["phosphorus"] - p),
-        "potassium": max(0, std["potassium"] - k),
-    }
+        fertilizers = [
+            {"name": "Urea", "nitrogen": 46, "phosphorus": 0, "potassium": 0},
+            {"name": "DAP", "nitrogen": 18, "phosphorus": 46, "potassium": 0},
+            {"name": "MOP", "nitrogen": 0, "phosphorus": 0, "potassium": 60},
+        ]
+        organics = [
+            {"name": "Compost", "nitrogen": 2, "phosphorus": 1, "potassium": 1},
+            {"name": "Manure", "nitrogen": 1.5, "phosphorus": 1.2, "potassium": 0.8},
+        ]
 
-    fertilizers = [
-        {"name": "Urea", "nitrogen": 46, "phosphorus": 0, "potassium": 0},
-        {"name": "DAP", "nitrogen": 18, "phosphorus": 46, "potassium": 0},
-        {"name": "MOP", "nitrogen": 0, "phosphorus": 0, "potassium": 60},
-    ]
-    organics = [
-        {"name": "Compost", "nitrogen": 2, "phosphorus": 1, "potassium": 1},
-        {"name": "Manure", "nitrogen": 1.5, "phosphorus": 1.2, "potassium": 0.8},
-    ]
+        inorganic = []
+        organic = []
 
-    inorganic = []
-    organic = []
-    
-    for fert in fertilizers:
-        if fert["nitrogen"] > 0 and deficiency["nitrogen"]:
-            amount = (deficiency['nitrogen'] / fert['nitrogen']) * 100
-            inorganic.append(f"{fert['name']} for Nitrogen: {amount:.2f} kg")
-        if fert["phosphorus"] > 0 and deficiency["phosphorus"]:
-            amount = (deficiency['phosphorus'] / fert['phosphorus']) * 100
-            inorganic.append(f"{fert['name']} for Phosphorus: {amount:.2f} kg")
-        if fert["potassium"] > 0 and deficiency["potassium"]:
-            amount = (deficiency['potassium'] / fert['potassium']) * 100
-            inorganic.append(f"{fert['name']} for Potassium: {amount:.2f} kg")
+        for fert in fertilizers:
+            if fert["nitrogen"] > 0 and deficiency["nitrogen"]:
+                amount = (deficiency['nitrogen'] / fert['nitrogen']) * 100
+                inorganic.append(f"{fert['name']} for Nitrogen: {amount:.2f} kg")
+            if fert["phosphorus"] > 0 and deficiency["phosphorus"]:
+                amount = (deficiency['phosphorus'] / fert['phosphorus']) * 100
+                inorganic.append(f"{fert['name']} for Phosphorus: {amount:.2f} kg")
+            if fert["potassium"] > 0 and deficiency["potassium"]:
+                amount = (deficiency['potassium'] / fert['potassium']) * 100
+                inorganic.append(f"{fert['name']} for Potassium: {amount:.2f} kg")
 
-    for org in organics:
-        if org["nitrogen"] > 0 and deficiency["nitrogen"]:
-            amount = (deficiency['nitrogen'] / org['nitrogen']) * 100
-            organic.append(f"{org['name']} for Nitrogen: {amount:.2f} kg")
-        if org["phosphorus"] > 0 and deficiency["phosphorus"]:
-            amount = (deficiency['phosphorus'] / org['phosphorus']) * 100
-            organic.append(f"{org['name']} for Phosphorus: {amount:.2f} kg")
-        if org["potassium"] > 0 and deficiency["potassium"]:
-            amount = (deficiency['potassium'] / org['potassium']) * 100
-            organic.append(f"{org['name']} for Potassium: {amount:.2f} kg")
+        for org in organics:
+            if org["nitrogen"] > 0 and deficiency["nitrogen"]:
+                amount = (deficiency['nitrogen'] / org['nitrogen']) * 100
+                organic.append(f"{org['name']} for Nitrogen: {amount:.2f} kg")
+            if org["phosphorus"] > 0 and deficiency["phosphorus"]:
+                amount = (deficiency['phosphorus'] / org['phosphorus']) * 100
+                organic.append(f"{org['name']} for Phosphorus: {amount:.2f} kg")
+            if org["potassium"] > 0 and deficiency["potassium"]:
+                amount = (deficiency['potassium'] / org['potassium']) * 100
+                organic.append(f"{org['name']} for Potassium: {amount:.2f} kg")
 
-    return inorganic, organic
+        return inorganic, organic
+    return [], []
 
 # Main App UI
 st.title("🌱 Smart Soil & Fertilizer Recommendation System")
@@ -201,47 +213,56 @@ if st.session_state.logged_in:
             [s["soil_name"] for s in soils]
         )
         soil_id = next(s["id"] for s in soils if s["soil_name"] == soil_choice)
-        
-        crops = get_crops_by_soil(soil_id)
-        if not crops:
+
+        crops_data = get_crops_by_soil(soil_id)
+        if not crops_data:
             st.error("No crops found for selected soil type")
             st.stop()
-        
+
+        crop_names = [c["crop_name"] for c in crops_data]
         crop_choice = st.selectbox(
             "Select Crop",
-            [c["crop_name"] for c in crops]
+            crop_names
         )
-        crop_id = next(c["id"] for c in crops if c["crop_name"] == crop_choice)
-        
+        try:
+            crop_index = crop_names.index(crop_choice)  # Get the index of the selected crop
+        except ValueError:
+            crop_index = -1
+
         st.subheader("Soil Nutrient Levels")
         n = st.number_input("Nitrogen (kg/acre)", min_value=0)
         p = st.number_input("Phosphorus (kg/acre)", min_value=0)
         k = st.number_input("Potassium (kg/acre)", min_value=0)
-        
+
         col1, col2 = st.columns(2)
         if col1.button("Analyze & Recommend"):
-            analysis = analyze_soil(crop_id, n, p, k)
-            if analysis:
-                st.session_state.analysis = analysis
-                st.session_state.inorganic, st.session_state.organic = recommend_fertilizer(crop_id, n, p, k)
-                st.rerun()
-        
+            if crop_index != -1:
+                analysis = analyze_soil(crop_index, n, p, k)
+                if analysis:
+                    st.session_state.analysis = analysis
+                    st.session_state.inorganic, st.session_state.organic = recommend_fertilizer(crop_index, n, p, k)
+                    st.rerun()
+                else:
+                    st.warning("No standard nutrient data found for this crop.")
+            else:
+                st.error("Could not determine the selected crop.")
+
         if col2.button("Reset"):
             st.session_state.analysis = None
             st.rerun()
-        
+
         if st.session_state.analysis:
             st.subheader("Analysis Results")
             for nutrient, status in st.session_state.analysis.items():
                 st.write(f"{nutrient}: {status}")
-            
+
             st.subheader("Recommended Inorganic Fertilizers")
             for fert in st.session_state.inorganic:
                 st.write(fert)
-            
+
             st.subheader("Recommended Organic Fertilizers")
             for fert in st.session_state.organic:
                 st.write(fert)
-            
+
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
