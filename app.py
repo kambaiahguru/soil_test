@@ -1,6 +1,10 @@
 import streamlit as st
 import sqlite3
 import hashlib
+import os  # Import the os module
+
+# Import the setup_db function from db_setup.py
+from db_setup import setup_db
 from datetime import datetime
 
 # 🔗 Connect to SQLite
