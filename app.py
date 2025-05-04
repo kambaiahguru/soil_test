@@ -232,7 +232,7 @@ translations = {
         "select_crop": "फसल चुनें",
         "nitrogen": "नाइट्रोजन (किग्रा/एकड़)",
         "phosphorus": "फॉस्फोरस (किग्रा/एकड़)",
-        "potेशियम (किग्रा/एकड़)",
+        "potassium": "पोटेशियम (किग्रा/एकड़)",
         "analyze": "विश्लेषण करें और सिफारिश करें",
         "nutrient_status": "पोषक तत्व स्थिति",
         "inorganic_fertilizers": "अकार्बनिक उर्वरक",
