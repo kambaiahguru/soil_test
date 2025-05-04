@@ -2,14 +2,80 @@ import streamlit as st
 import sqlite3
 import hashlib
 import os  # Import the os module
+import sys
+from datetime import datetime
 
 # Import the setup_db function from db_setup.py
-from db_setup import setup_db
-from datetime import datetime
+try:
+    from db_setup import setup_db
+except ModuleNotFoundError:
+    def setup_db():
+        """
+        Creates the database and tables.
+        """
+        conn = sqlite3.connect('soil_recommendation.db')
+        cursor = conn.cursor()
+
+        # Create users table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL
+            )
+        """)
+
+        # Create soiltypes table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS soiltypes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                soil_name TEXT UNIQUE NOT NULL
+            )
+        """)
+
+        # Create crops table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS crops (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                crop_name TEXT NOT NULL,
+                soil_id INTEGER,
+                FOREIGN KEY (soil_id) REFERENCES soiltypes (id)
+            )
+        """)
+
+        # Insert initial data into soiltypes
+        cursor.execute("SELECT COUNT(*) FROM soiltypes")
+        if cursor.fetchone()[0] == 0:
+            soils = [("Black Soil",), ("Laterite Soil",), ("Red Soil",), ("Alluvial Soil",), ("Clay Soil",), ("Sandy Soil",), ("Loamy Soil",)]
+            cursor.executemany("INSERT INTO soiltypes (soil_name) VALUES (?)", soils)
+
+        # Insert initial data into crops
+        cursor.execute("SELECT COUNT(*) FROM crops")
+        if cursor.fetchone()[0] == 0:
+            crops = [
+                ("Rice", 1), ("Cotton", 1), ("Sugarcane", 1),  # Black Soil
+                ("Tea", 2), ("Coffee", 2), ("Rubber", 2),      # Laterite Soil
+                ("Groundnut", 3), ("Millets", 3), ("Tobacco", 3),    # Red Soil
+                ("Wheat", 4), ("Rice", 4), ("Sugarcane", 4),      # Alluvial Soil
+                ("Paddy", 5), ("Jute", 5), ("Wheat",5),            # Clay Soil
+                ("Coconut", 6), ("Groundnut", 6), ("Maize", 6),    # Sandy Soil
+                ("Wheat", 7), ("Cotton", 7), ("Vegetables", 7)     # Loamy Soil
+            ]
+            cursor.executemany("INSERT INTO crops (crop_name, soil_id) VALUES (?, ?)", crops)
+
+        conn.commit()
+        conn.close()
+        print("Created database and populated with initial data")
+
 
 # 🔗 Connect to SQLite
 def connect_db():
-    return sqlite3.connect('soil_recommendation.db')
+    try:
+        conn = sqlite3.connect('soil_recommendation.db')
+        return conn
+    except sqlite3.Error as e:
+        st.error(f"Error connecting to database: {e}")
+        sys.exit()
 
 # Check if the database file exists, and if not, run the setup
 if not os.path.exists('soil_recommendation.db'):
@@ -83,12 +149,12 @@ def analyze_soil(crop_id, n, p, k, T):
     if not std:
         return None
     return {
-        T["nitrogen"].split()[0].capitalize(): f"{T['excess_by']} {n - std['nitrogen']}" if n > std["nitrogen"]
-        else f"{T['deficient_by']} {std['nitrogen'] - n}" if n < std["nitrogen"] else T["balanced"],
-        T["phosphorus"].split()[0].capitalize(): f"{T['excess_by']} {p - std['phosphorus']}" if p > std["phosphorus"]
-        else f"{T['deficient_by']} {std['phosphorus'] - p}" if p < std["phosphorus"] else T["balanced"],
-        T["potassium"].split()[0].capitalize(): f"{T['excess_by']} {k - std['potassium']}" if k > std["potassium"]
-        else f"{T['deficient_by']} {std['potassium'] - k}" if k < std["potassium"] else T["balanced" ]
+        T["nitrogen"].split()[0].capitalize(): f"{T['excess_by']} {n - std['nitrogen']:.2f}" if n > std["nitrogen"]
+        else f"{T['deficient_by']} {std['nitrogen'] - n:.2f}" if n < std["nitrogen"] else T["balanced"],
+        T["phosphorus"].split()[0].capitalize(): f"{T['excess_by']} {p - std['phosphorus']:.2f}" if p > std["phosphorus"]
+        else f"{T['deficient_by']} {std['phosphorus'] - p:.2f}" if p < std["phosphorus"] else T["balanced"],
+        T["potassium"].split()[0].capitalize(): f"{T['excess_by']} {k - std['potassium']:.2f}" if k > std["potassium"]
+        else f"{T['deficient_by']} {std['potassium'] - k:.2f}" if k < std["potassium"] else T["balanced" ]
     }
 
 # 💊 Recommend fertilizers (no change needed)
@@ -116,20 +182,26 @@ def recommend_fertilizer(crop_id, n, p, k, T):
     inorganic = []
     for f in fertilizers_data:
         if f["nitrogen"] > 0 and deficiency["nitrogen"]:
-            inorganic.append(f"{f['name']} {T['for_nitrogen']}: {(deficiency['nitrogen']/f['nitrogen'])*100:.2f} kg")
+            amount = (deficiency['nitrogen'] / f['nitrogen']) * 100
+            inorganic.append(f"{f['name']} {T['for_nitrogen']}: {amount:.2f} kg")
         if f["phosphorus"] > 0 and deficiency["phosphorus"]:
-            inorganic.append(f"{f['name']} {T['for_phosphorus']}: {(deficiency['phosphorus']/f['phosphorus'])*100:.2f} kg")
+            amount = (deficiency['phosphorus'] / f['phosphorus']) * 100
+            inorganic.append(f"{f['name']} {T['for_phosphorus']}: {amount:.2f} kg")
         if f["potassium"] > 0 and deficiency["potassium"]:
-            inorganic.append(f"{f['name']} {T['for_potassium']}: {(deficiency['potassium']/f['potassium'])*100:.2f} kg")
+            amount = (deficiency['potassium'] / f['potassium']) * 100
+            inorganic.append(f"{f['name']} {T['for_potassium']}: {amount:.2f} kg")
 
     organic = []
     for f in organics_data:
         if f["nitrogen"] > 0 and deficiency["nitrogen"]:
-            organic.append(f"{f['name']} {T['for_nitrogen']}: {(deficiency['nitrogen']/f['nitrogen'])*100:.2f} kg")
+            amount = (deficiency['nitrogen'] / f['nitrogen']) * 100
+            organic.append(f"{f['name']} {T['for_nitrogen']}: {amount:.2f} kg")
         if f["phosphorus"] > 0 and deficiency["phosphorus"]:
-            organic.append(f"{f['name']} {T['for_phosphorus']}: {(deficiency['phosphorus']/f['phosphorus'])*100:.2f} kg")
+            amount = (deficiency['phosphorus'] / f['phosphorus']) * 100
+            organic.append(f"{f['name']} {T['for_phosphorus']}: {amount:.2f} kg")
         if f["potassium"] > 0 and deficiency["potassium"]:
-            organic.append(f"{f['name']} {T['for_potassium']}: {(deficiency['potassium']/f['potassium'])*100:.2f} kg")
+            amount = (deficiency['potassium'] / f['potassium']) * 100
+            organic.append(f"{f['name']} {T['for_potassium']}: {amount:.2f} kg")
 
     return inorganic, organic
 
@@ -245,7 +317,7 @@ translations = {
         "balanced": "संतुलित",
         "for_nitrogen": "नाइट्रोजन के लिए",
         "for_phosphorus": "फॉस्फोरस के लिए",
-        "for_potassium": "पोटेशियम के लिए",
+        "for_potेशियम": "पोटेशियम के लिए",
     }
 }
 
@@ -307,21 +379,25 @@ if st.session_state.logged_in:
 
             if st.button(T["analyze"]):
                 analysis = analyze_soil(crop_id, n, p, k, T)
-                st.subheader(T["nutrient_status"])
-                for key, val in analysis.items():
-                    st.write(f"{key}: {val}")
+                if analysis: #check if analysis is not None
+                    st.subheader(T["nutrient_status"])
+                    for key, val in analysis.items():
+                        st.write(f"{key}: {val}")
 
-                inorganic, organic = recommend_fertilizer(crop_id, n, p, k, T)
-                st.subheader(T["inorganic_fertilizers"])
-                st.write("\n".join(inorganic))
-                st.subheader(T["organic_fertilizers"])
-                st.write("\n".join(organic))
+                    inorganic, organic = recommend_fertilizer(crop_id, n, p, k, T)
+                    st.subheader(T["inorganic_fertilizers"])
+                    st.write("\n".join(inorganic))
+                    st.subheader(T["organic_fertilizers"])
+                    st.write("\n".join(organic))
 
-                result = save_to_file(analysis, inorganic, organic, T)
-                st.download_button(
-                    label=T["download_result"],
-                    data=result,
-                    file_name="soil_analysis_result.txt",
-                    mime="text/plain"
-                )
+                    result = save_to_file(analysis, inorganic, organic, T)
+                    st.download_button(
+                        label=T["download_result"],
+                        data=result,
+                        file_name="soil_analysis_result.txt",
+                        mime="text/plain"
+                    )
+                else:
+                    st.error("Crop ID is invalid. Please select a valid crop.")
+                
 
