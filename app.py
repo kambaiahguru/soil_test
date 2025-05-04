@@ -3,6 +3,112 @@ import sqlite3
 import hashlib
 from datetime import datetime
 from db_setup import setup_db
+import pandas as pd
+from io import StringIO
+
+# Language mapping
+language_options = ["English", "Hindi", "Kannada"]
+language_map = {
+    "English": {
+        "menu": "Menu",
+        "login": "Login",
+        "register": "Register",
+        "create_account": "Create Account",
+        "username": "Username",
+        "password": "Password",
+        "register_button": "Register",
+        "login_button": "Login",
+        "invalid_credentials": "Invalid credentials",
+        "welcome": "Welcome",
+        "soil_type": "Select Soil Type",
+        "no_soil_found": "No soil types found in database",
+        "crop": "Select Crop",
+        "no_crop_found": "No crops found for selected soil type",
+        "nutrient_levels": "Soil Nutrient Levels",
+        "nitrogen": "Nitrogen (kg/acre)",
+        "phosphorus": "Phosphorus (kg/acre)",
+        "potassium": "Potassium (kg/acre)",
+        "analyze_recommend": "Analyze & Recommend",
+        "reset": "Reset",
+        "analysis_results": "Analysis Results",
+        "recommended_inorganic": "Recommended Inorganic Fertilizers",
+        "recommended_organic": "Recommended Organic Fertilizers",
+        "download_results": "Download Results",
+        "excess_by": "Excess by",
+        "deficient_by": "Deficient by",
+        "balanced": "Balanced",
+        "no_nutrient_data": "No standard nutrient data found for this crop.",
+        "crop_determination_failed": "Could not determine the selected crop.",
+        "download_file_name": "soil_analysis_results",
+        "register_exists": "already exists",
+    },
+    "Hindi": {
+        "menu": "मेनू",
+        "login": "लॉगिन",
+        "register": "रजिस्टर",
+        "create_account": "खाता बनाएँ",
+        "username": "उपयोगकर्ता नाम",
+        "password": "पासवर्ड",
+        "register_button": "रजिस्टर करें",
+        "login_button": "लॉगिन करें",
+        "invalid_credentials": "अमान्य क्रेडेंशियल",
+        "welcome": "स्वागत है",
+        "soil_type": "मिट्टी का प्रकार चुनें",
+        "no_soil_found": "डेटाबेस में कोई मिट्टी का प्रकार नहीं मिला",
+        "crop": "फसल चुनें",
+        "no_crop_found": "चयनित मिट्टी के प्रकार के लिए कोई फसल नहीं मिली",
+        "nutrient_levels": "मिट्टी पोषक तत्व स्तर",
+        "nitrogen": "नाइट्रोजन (किलोग्राम/एकड़)",
+        "phosphorus": "फास्फोरस (किलोग्राम/एकड़)",
+        "potassium": "पोटेशियम (किलोग्राम/एकड़)",
+        "analyze_recommend": "विश्लेषण और सिफारिश करें",
+        "reset": "रीसेट",
+        "analysis_results": "विश्लेषण परिणाम",
+        "recommended_inorganic": "अनुशंसित अकार्बनिक उर्वरक",
+        "recommended_organic": "अनुशंसित कार्बनिक उर्वरक",
+        "download_results": "परिणाम डाउनलोड करें",
+        "excess_by": "से अधिक",
+        "deficient_by": "से कम",
+        "balanced": "संतुलित",
+        "no_nutrient_data": "इस फसल के लिए कोई मानक पोषक तत्व डेटा नहीं मिला।",
+        "crop_determination_failed": "चयनित फसल का निर्धारण नहीं किया जा सका।",
+        "download_file_name": "मृदा_विश्लेषण_परिणाम",
+        "register_exists": "पहले से मौजूद है",
+    },
+    "Kannada": {
+        "menu": "ಮೆನು",
+        "login": "ಲಾಗ್ ಇನ್",
+        "register": "ನೋಂದಾಯಿಸಿ",
+        "create_account": "ಖಾತೆ ರಚಿಸಿ",
+        "username": "ಬಳಕೆದಾರ ಹೆಸರು",
+        "password": "ಗುಪ್ತಪದ",
+        "register_button": "ನೋಂದಾಯಿಸಿ",
+        "login_button": "ಲಾಗ್ ಇನ್",
+        "invalid_credentials": "ಅಮಾನ್ಯ ರುಜುವಾತುಗಳು",
+        "welcome": "ಸ್ವಾಗತ",
+        "soil_type": "ಮಣ್ಣಿನ ಪ್ರಕಾರವನ್ನು ಆಯ್ಕೆ ಮಾಡಿ",
+        "no_soil_found": "ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಯಾವುದೇ ಮಣ್ಣಿನ ಪ್ರಕಾರಗಳು ಕಂಡುಬಂದಿಲ್ಲ",
+        "crop": "ಬೆಳೆ ಆಯ್ಕೆ ಮಾಡಿ",
+        "no_crop_found": "ಆಯ್ಕೆ ಮಾಡಿದ ಮಣ್ಣಿನ ಪ್ರಕಾರಕ್ಕೆ ಯಾವುದೇ ಬೆಳೆಗಳು ಕಂಡುಬಂದಿಲ್ಲ",
+        "nutrient_levels": "ಮಣ್ಣಿನ ಪೋಷಕಾಂಶಗಳ ಮಟ್ಟಗಳು",
+        "nitrogen": "ಸಾರಜನಕ (ಕೆಜಿ/ಎಕರೆ)",
+        "phosphorus": "ರಂಜಕ (ಕೆಜಿ/ಎಕರೆ)",
+        "potassium": "ಪೊಟ್ಯಾಸಿಯಮ್ (ಕೆಜಿ/ಎಕರೆ)",
+        "analyze_recommend": "ವಿಶ್ಲೇಷಿಸಿ ಮತ್ತು ಶಿಫಾರಸು ಮಾಡಿ",
+        "reset": "ಮರುಹೊಂದಿಸಿ",
+        "analysis_results": "ವಿಶ್ಲೇಷಣೆ ಫಲಿತಾಂಶಗಳು",
+        "recommended_inorganic": "ಶಿಫಾರಸು ಮಾಡಲಾದ ಅಜೈವಿಕ ಗೊಬ್ಬರಗಳು",
+        "recommended_organic": "ಶಿಫಾರಸು ಮಾಡಲಾದ ಸಾವಯವ ಗೊಬ್ಬರಗಳು",
+        "download_results": "ಫಲಿತಾಂಶಗಳನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ",
+        "excess_by": "ಇಂದ ಹೆಚ್ಚುವರಿ",
+        "deficient_by": "ಇಂದ ಕೊರತೆ",
+        "balanced": "ಸಮತೋಲಿತ",
+        "no_nutrient_data": "ಈ ಬೆಳೆಗೆ ಯಾವುದೇ ಪ್ರಮಾಣಿತ ಪೋಷಕಾಂಶ ದತ್ತಾಂಶ ಕಂಡುಬಂದಿಲ್ಲ.",
+        "crop_determination_failed": "ಆಯ್ಕೆ ಮಾಡಿದ ಬೆಳೆಯನ್ನು ನಿರ್ಧರಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.",
+        "download_file_name": "ಮಣ್ಣಿನ_ವಿಶ್ಲೇಷಣೆ_ಫಲಿತಾಂಶಗಳು",
+        "register_exists": "ಈಗಾಗಲೇ ಅಸ್ತಿತ್ವದಲ್ಲಿದೆ",
+    },
+}
 
 # Initialize session state
 def init_session_state():
@@ -18,9 +124,16 @@ def init_session_state():
         st.session_state.inorganic = []
     if 'organic' not in st.session_state:
         st.session_state.organic = []
+    if 'language' not in st.session_state:
+        st.session_state.language = "English"
 
 # Initialize app
 init_session_state()
+
+# Language selection
+selected_language = st.sidebar.selectbox("Language / भाषा / ಭಾಷೆ", language_options)
+st.session_state.language = selected_language
+lang = language_map[st.session_state.language]
 
 # Database connection
 def get_db_connection():
@@ -46,7 +159,7 @@ def register_user(username, password):
         conn.commit()
         return True
     except sqlite3.IntegrityError:
-        st.error("Username already exists")
+        st.error(lang["username"] + " " + lang["register_exists"])
         return False
     finally:
         conn.close()
@@ -92,40 +205,40 @@ def get_crops_by_soil(soil_id):
         conn.close()
 
 # Analysis functions
-standard_nutrients_list = [  # Changed to a list
-    {"nitrogen": 50, "phosphorus": 30, "potassium": 40},  # Assuming Rice for Black Soil (index 0)
-    {"nitrogen": 45, "phosphorus": 25, "potassium": 35},  # Assuming Cotton for Black Soil (index 1)
-    {"nitrogen": 60, "phosphorus": 40, "potassium": 50},  # Assuming Sugarcane for Black Soil (index 2)
-    {"nitrogen": 45, "phosphorus": 25, "potassium": 35},  # Assuming Tea for Laterite Soil (index 0)
-    {"nitrogen": 50, "phosphorus": 30, "potassium": 40},  # Assuming Coffee for Laterite Soil (index 1)
-    {"nitrogen": 55, "phosphorus": 35, "potassium": 45},  # Assuming Rubber for Laterite Soil (index 2)
-    {"nitrogen": 60, "phosphorus": 40, "potassium": 50},  # Assuming Groundnut for Red Soil (index 0)
-    {"nitrogen": 50, "phosphorus": 30, "potassium": 40},  # Assuming Millets for Red Soil (index 1)
-    {"nitrogen": 70, "phosphorus": 50, "potassium": 60},  # Assuming Tobacco for Red Soil (index 2)
-    {"nitrogen": 80, "phosphorus": 60, "potassium": 70},  # Assuming Wheat for Alluvial Soil (index 0)
-    {"nitrogen": 75, "phosphorus": 55, "potassium": 65},  # Assuming Rice for Alluvial Soil (index 1)
-    {"nitrogen": 85, "phosphorus": 65, "potassium": 75},  # Assuming Sugarcane for Alluvial Soil (index 2)
-    {"nitrogen": 70, "phosphorus": 50, "potassium": 60},  # Assuming Paddy for Clay Soil (index 0)
-    {"nitrogen": 65, "phosphorus": 45, "potassium": 55},  # Assuming Jute for Clay Soil (index 1)
-    {"nitrogen": 80, "phosphorus": 60, "potassium": 70},  # Assuming Wheat for Clay Soil (index 2)
-    {"nitrogen": 90, "phosphorus": 70, "potassium": 80},  # Assuming Coconut for Sandy Soil (index 0)
-    {"nitrogen": 60, "phosphorus": 40, "potassium": 50},  # Assuming Groundnut for Sandy Soil (index 1)
-    {"nitrogen": 75, "phosphorus": 55, "potassium": 65},  # Assuming Maize for Sandy Soil (index 2)
-    {"nitrogen": 85, "phosphorus": 65, "potassium": 75},  # Assuming Wheat for Loamy Soil (index 0)
-    {"nitrogen": 70, "phosphorus": 50, "potassium": 60},  # Assuming Cotton for Loamy Soil (index 1)
-    {"nitrogen": 80, "phosphorus": 60, "potassium": 70},  # Assuming Vegetables for Loamy Soil (index 2)
+standard_nutrients_list = [
+    {"nitrogen": 50, "phosphorus": 30, "potassium": 40},
+    {"nitrogen": 45, "phosphorus": 25, "potassium": 35},
+    {"nitrogen": 60, "phosphorus": 40, "potassium": 50},
+    {"nitrogen": 45, "phosphorus": 25, "potassium": 35},
+    {"nitrogen": 50, "phosphorus": 30, "potassium": 40},
+    {"nitrogen": 55, "phosphorus": 35, "potassium": 45},
+    {"nitrogen": 60, "phosphorus": 40, "potassium": 50},
+    {"nitrogen": 50, "phosphorus": 30, "potassium": 40},
+    {"nitrogen": 70, "phosphorus": 50, "potassium": 60},
+    {"nitrogen": 80, "phosphorus": 60, "potassium": 70},
+    {"nitrogen": 75, "phosphorus": 55, "potassium": 65},
+    {"nitrogen": 85, "phosphorus": 65, "potassium": 75},
+    {"nitrogen": 70, "phosphorus": 50, "potassium": 60},
+    {"nitrogen": 65, "phosphorus": 45, "potassium": 55},
+    {"nitrogen": 80, "phosphorus": 60, "potassium": 70},
+    {"nitrogen": 90, "phosphorus": 70, "potassium": 80},
+    {"nitrogen": 60, "phosphorus": 40, "potassium": 50},
+    {"nitrogen": 75, "phosphorus": 55, "potassium": 65},
+    {"nitrogen": 85, "phosphorus": 65, "potassium": 75},
+    {"nitrogen": 70, "phosphorus": 50, "potassium": 60},
+    {"nitrogen": 80, "phosphorus": 60, "potassium": 70},
 ]
 
 def analyze_soil(crop_index, n, p, k):
     if 0 <= crop_index < len(standard_nutrients_list):
         std = standard_nutrients_list[crop_index]
         return {
-            "Nitrogen": f"Excess by {n - std['nitrogen']:.2f}" if n > std["nitrogen"]
-            else f"Deficient by {std['nitrogen'] - n:.2f}" if n < std["nitrogen"] else "Balanced",
-            "Phosphorus": f"Excess by {p - std['phosphorus']:.2f}" if p > std["phosphorus"]
-            else f"Deficient by {std['phosphorus'] - p:.2f}" if p < std["phosphorus"] else "Balanced",
-            "Potassium": f"Excess by {k - std['potassium']:.2f}" if k > std["potassium"]
-            else f"Deficient by {std['potassium'] - k:.2f}" if k < std["potassium"] else "Balanced"
+            "Nitrogen": f"{lang['excess_by']} {n - std['nitrogen']:.2f}" if n > std["nitrogen"]
+            else f"{lang['deficient_by']} {std['nitrogen'] - n:.2f}" if n < std["nitrogen"] else lang["balanced"],
+            "Phosphorus": f"{lang['excess_by']} {p - std['phosphorus']:.2f}" if p > std["phosphorus"]
+            else f"{lang['deficient_by']} {std['phosphorus'] - p:.2f}" if p < std["phosphorus"] else lang["balanced"],
+            "Potassium": f"{lang['excess_by']} {k - std['potassium']:.2f}" if k > std["potassium"]
+            else f"{lang['deficient_by']} {std['potassium'] - k:.2f}" if k < std["potassium"] else lang["balanced"]
         }
     return None
 
@@ -176,66 +289,100 @@ def recommend_fertilizer(crop_index, n, p, k):
         return inorganic, organic
     return [], []
 
+def download_results(analysis_results, inorganic_recommendations, organic_recommendations):
+    now = datetime.now()
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+    day = now.strftime("%A")
+    year = now.strftime("%Y")
+
+    results_text = f"Soil Analysis and Fertilizer Recommendation\n"
+    results_text += f"Date: {now.strftime('%Y-%m-%d')}\n"
+    results_text += f"Time: {now.strftime('%H:%M:%S')}\n"
+    results_text += f"Day: {day}\n"
+    results_text += f"Year: {year}\n\n"
+    results_text += "Analysis Results:\n"
+    if analysis_results:
+        for nutrient, status in analysis_results.items():
+            results_text += f"- {nutrient}: {status}\n"
+    else:
+        results_text += "No analysis performed.\n"
+
+    results_text += "\nRecommended Inorganic Fertilizers:\n"
+    if inorganic_recommendations:
+        for recommendation in inorganic_recommendations:
+            results_text += f"- {recommendation}\n"
+    else:
+        results_text += "No inorganic fertilizer recommendations.\n"
+
+    results_text += "\nRecommended Organic Fertilizers:\n"
+    if organic_recommendations:
+        for recommendation in organic_recommendations:
+            results_text += f"- {recommendation}\n"
+    else:
+        results_text += "No organic fertilizer recommendations.\n"
+
+    return results_text
+
 # Main App UI
 st.title("🌱 Smart Soil & Fertilizer Recommendation System")
 
 # Authentication
-menu = st.sidebar.selectbox("Menu", ["Login", "Register"])
+menu = st.sidebar.selectbox(lang["menu"], [lang["login"], lang["register"]])
 
-if menu == "Register":
-    st.sidebar.subheader("Create Account")
-    new_user = st.sidebar.text_input("Username")
-    new_pass = st.sidebar.text_input("Password", type="password")
-    if st.sidebar.button("Register"):
+if menu == lang["register"]:
+    st.sidebar.subheader(lang["create_account"])
+    new_user = st.sidebar.text_input(lang["username"])
+    new_pass = st.sidebar.text_input(lang["password"], type="password")
+    if st.sidebar.button(lang["register_button"]):
         if register_user(new_user, new_pass):
             st.sidebar.success("Account created successfully!")
 
-elif menu == "Login":
-    st.sidebar.subheader("Login")
-    username = st.sidebar.text_input("Username")
-    password = st.sidebar.text_input("Password", type="password")
-    if st.sidebar.button("Login"):
+elif menu == lang["login"]:
+    st.sidebar.subheader(lang["login"])
+    username = st.sidebar.text_input(lang["username"])
+    password = st.sidebar.text_input(lang["password"], type="password")
+    if st.sidebar.button(lang["login_button"]):
         if verify_user(username, password):
-            st.success(f"Welcome {username}!")
+            st.success(f"{lang['welcome']} {username}!")
         else:
-            st.sidebar.error("Invalid credentials")
+            st.sidebar.error(lang["invalid_credentials"])
 
 # Main Application
 if st.session_state.logged_in:
     try:
         soils = get_soil_types()
         if not soils:
-            st.error("No soil types found in database")
+            st.error(lang["no_soil_found"])
             st.stop()
 
         soil_choice = st.selectbox(
-            "Select Soil Type",
+            lang["soil_type"],
             [s["soil_name"] for s in soils]
         )
         soil_id = next(s["id"] for s in soils if s["soil_name"] == soil_choice)
 
         crops_data = get_crops_by_soil(soil_id)
         if not crops_data:
-            st.error("No crops found for selected soil type")
+            st.error(lang["no_crop_found"])
             st.stop()
 
         crop_names = [c["crop_name"] for c in crops_data]
         crop_choice = st.selectbox(
-            "Select Crop",
+            lang["crop"],
             crop_names
         )
         try:
-            crop_index = crop_names.index(crop_choice)  # Get the index of the selected crop
+            crop_index = crop_names.index(crop_choice)
         except ValueError:
             crop_index = -1
 
-        st.subheader("Soil Nutrient Levels")
-        n = st.number_input("Nitrogen (kg/acre)", min_value=0)
-        p = st.number_input("Phosphorus (kg/acre)", min_value=0)
-        k = st.number_input("Potassium (kg/acre)", min_value=0)
+        st.subheader(lang["nutrient_levels"])
+        n = st.number_input(lang["nitrogen"], min_value=0)
+        p = st.number_input(lang["phosphorus"], min_value=0)
+        k = st.number_input(lang["potassium"], min_value=0)
 
-        col1, col2 = st.columns(2)
-        if col1.button("Analyze & Recommend"):
+        col1, col2, col3 = st.columns(3)
+        if col1.button(lang["analyze_recommend"]):
             if crop_index != -1:
                 analysis = analyze_soil(crop_index, n, p, k)
                 if analysis:
@@ -243,26 +390,37 @@ if st.session_state.logged_in:
                     st.session_state.inorganic, st.session_state.organic = recommend_fertilizer(crop_index, n, p, k)
                     st.rerun()
                 else:
-                    st.warning("No standard nutrient data found for this crop.")
+                    st.warning(lang["no_nutrient_data"])
             else:
-                st.error("Could not determine the selected crop.")
+                st.error(lang["crop_determination_failed"])
 
-        if col2.button("Reset"):
+        if col2.button(lang["reset"]):
             st.session_state.analysis = None
+            st.session_state.inorganic = []
+            st.session_state.organic = []
             st.rerun()
 
         if st.session_state.analysis:
-            st.subheader("Analysis Results")
+            st.subheader(lang["analysis_results"])
             for nutrient, status in st.session_state.analysis.items():
                 st.write(f"{nutrient}: {status}")
 
-            st.subheader("Recommended Inorganic Fertilizers")
+            st.subheader(lang["recommended_inorganic"])
             for fert in st.session_state.inorganic:
                 st.write(fert)
 
-            st.subheader("Recommended Organic Fertilizers")
+            st.subheader(lang["recommended_organic"])
             for fert in st.session_state.organic:
                 st.write(fert)
+            
+            if col3.button(lang["download_results"]):
+                results_text = download_results(st.session_state.analysis, st.session_state.inorganic, st.session_state.organic)
+                st.download_button(
+                    label="Download",
+                    data=results_text.encode('utf-8'),
+                    file_name=f"{lang['download_file_name']}.txt",
+                    mime="text/plain",
+                )
 
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
