@@ -3,6 +3,7 @@ import sqlite3
 
 def setup_db():
     """Initialize database with all required tables and sample data"""
+    conn = None  # Initialize conn to None
     try:
         conn = sqlite3.connect('soil_recommendation.db')
         cursor = conn.cursor()
@@ -37,7 +38,7 @@ def setup_db():
         if cursor.fetchone()[0] == 0:
             soils = [
                 ('Black Soil',), ('Laterite Soil',), ('Red Soil',),
-                ('Alluvial Soil',), ('Clay Soil',), ('Sandy Soil',), 
+                ('Alluvial Soil',), ('Clay Soil',), ('Sandy Soil',),
                 ('Loamy Soil',)
             ]
             cursor.executemany("INSERT INTO soiltypes (soil_name) VALUES (?)", soils)
@@ -58,13 +59,14 @@ def setup_db():
 
         conn.commit()
         print("Database setup completed successfully")
-        
+        return conn
     except sqlite3.Error as e:
         print(f"Database error: {e}")
+        if conn:
+            conn.rollback()  # Rollback changes on error
         raise
     finally:
-        if conn:
-            conn.close()
+        pass # Connection is returned, closing is handled in app.py
 
 if __name__ == "__main__":
     setup_db()
