@@ -1,3 +1,4 @@
+# app.py
 import streamlit as st
 import sqlite3
 import hashlib
@@ -25,7 +26,7 @@ init_session_state()
 # Database connection
 def get_db_connection():
     try:
-        conn = initialize_database()
+        conn = setup_db()
         return conn
     except sqlite3.Error as e:
         st.error(f"Database connection failed: {e}")
